@@ -7,7 +7,7 @@ A sophisticated priority management system designed for FiveM roleplay servers. 
 ### Priority Zone Management
 - **Multiple Zones**: 
   - Los Santos (City)
-  - Blaine County (County)
+  - Blaine County (BC)
   - Fort Zancudo (Military Base)
 
 **You can add more this is just what I have added** ^
