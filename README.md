@@ -22,7 +22,7 @@ A Simple fully configurable Prioirty Scirpt
 ### Discord Integration
 - **Real-time Logging:** All priority actions are logged to Discord via webhook
 - **Staff Accountability:** Tracks which staff member performs each action with Discord pings
-- **Detailed Webhooks:**
+- ** Webhooks:**
   - Timestamps
   - Staff member information
   - Priority location
