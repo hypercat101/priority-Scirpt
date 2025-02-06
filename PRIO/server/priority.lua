@@ -1,13 +1,66 @@
-local priorities = {
-    blaine = { status = 'Available', cooldown = 0 },
-    ls = { status = 'Available', cooldown = 0 },
-    fz = { status = 'Available', cooldown = 0 }
-}
-
+-- Initialize priorities based on config
+local priorities = {}
 local playerCooldowns = {}
 
+-- Initialize zones
+for zone, data in pairs(Config.Zones) do
+    priorities[zone] = { 
+        status = data.defaultStatus, 
+        cooldown = data.defaultCooldown 
+    }
+end
+
+-- Function to add new zone during runtime (optional)
+function AddNewZone(zoneName, label)
+    if not Config.Zones[zoneName] then
+        Config.Zones[zoneName] = {
+            label = label,
+            defaultStatus = 'Available',
+            defaultCooldown = 0
+        }
+        priorities[zoneName] = {
+            status = 'Available',
+            cooldown = 0
+        }
+        return true
+    end
+    return false
+end
+
+-- Function to check if zone exists
+local function zoneExists(location)
+    return priorities[location] ~= nil
+end
+
+--[[ 
+    EXAMPLE: How to add a new zone status
+    
+    1. First add your new zone in config.lua:
+    Config.Zones['prison'] = {
+        label = 'Bolingbroke Prison',
+        defaultStatus = 'Available',
+        defaultCooldown = 0
+    }
+
+    2. The system will automatically initialize it with these statuses:
+    priorities['prison'] = {
+        status = 'Available',
+        cooldown = 0
+    }
+
+    3. Status types available by default:
+    - 'Available'     (Ready for priority)
+    - 'In Progress'   (Active priority)
+    - 'Cooldown'      (In cooldown period)
+
+    4. To add custom status types, modify the updatePriorityStatus function calls:
+    Example usage:
+    updatePriorityStatus('prison', 'Lockdown', 30) -- Custom status with 30min cooldown
+    updatePriorityStatus('prison', 'Available', 0)  -- Reset to available
+]]
+
 -- Configuration
-local webhookUrl = 'YOUR_WEBHOOK_URL'
+local webhookUrl = Config.Webhook.url -- Place Your Webhook URL Here
 
 -- Add your Discord user IDs here (can add multiple)
 local discordIDs = {
@@ -16,24 +69,25 @@ local discordIDs = {
 
 local function checkPlayerCooldown(source)
     local currentTime = os.time()
-    if playerCooldowns[source] and currentTime - playerCooldowns[source] < 25 then
-        -- Player is still in cooldown
-        local remainingTime = 25 - (currentTime - playerCooldowns[source])
+    if playerCooldowns[source] and currentTime - playerCooldowns[source] < Config.CommandCooldownTime then
+        local remainingTime = Config.CommandCooldownTime - (currentTime - playerCooldowns[source])
         TriggerClientEvent('ox_lib:notify', source, {
             title = 'Command Cooldown',
-            description = string.format('Please wait %d seconds', remainingTime),
+            description = string.format(Config.Messages.cooldownActive, remainingTime),
             type = 'error'
         })
         return false
     end
     
-    -- Set new cooldown
     playerCooldowns[source] = currentTime
     return true
 end
 
 local function updatePriorityStatus(location, status, cooldown)
-    if not priorities[location] then return end
+    if not zoneExists(location) then 
+        print('^1[ERROR]^7 Attempted to update non-existent zone: ' .. location)
+        return 
+    end
     
     priorities[location].status = status
     priorities[location].cooldown = cooldown
@@ -44,67 +98,62 @@ local function startCooldown(location)
     if not priorities[location] then return end
 
     priorities[location].status = 'Cooldown'
-    priorities[location].cooldown = 10
+    priorities[location].cooldown = Config.PriorityCooldownTime
     
-    TriggerClientEvent('priority:updateStatus', -1, location, 'Cooldown', 10)
+    TriggerClientEvent('priority:updateStatus', -1, location, 'Cooldown', Config.PriorityCooldownTime)
     
     CreateThread(function()
-        local timer = 10
+        local timer = Config.PriorityCooldownTime
         while timer > 0 do
-            Wait(60000)
+            Wait(60000) -- 1 minute
             timer = timer - 1
             priorities[location].cooldown = timer
             
             TriggerClientEvent('priority:updateStatus', -1, location, 'Cooldown', timer)
             
             if timer <= 0 then
-                priorities[location].status = 'Available'
-                priorities[location].cooldown = 0
-                TriggerClientEvent('priority:updateStatus', -1, location, 'Available', 0)
+                priorities[location].status = Config.Zones[location].defaultStatus
+                priorities[location].cooldown = Config.Zones[location].defaultCooldown
+                TriggerClientEvent('priority:updateStatus', -1, location, Config.Zones[location].defaultStatus, Config.Zones[location].defaultCooldown)
             end
         end
     end)
 end
 
 local function sendToDiscord(player, action, location)
-    print('Attempting to send webhook:', player, action, location)
-    
-    print('Webhook URL:', webhookUrl)
-    
-    if webhookUrl == '' then 
+    if Config.Webhook.url == '' then 
         print('Webhook URL not set!')
         return 
     end
     
-    -- Get player identifiers
-    local identifiers = GetPlayerIdentifiers(source)
+    local identifiers = GetPlayerIdentifiers(player)
     local discordPing = ''
-    
-    -- Debug print identifiers
-    print('Player identifiers:', json.encode(identifiers))
     
     for _, identifier in pairs(identifiers) do
         if string.find(identifier, "discord:") then
             discordPing = string.format('<@%s>', string.gsub(identifier, "discord:", ""))
-            print('Found Discord ID:', discordPing)
             break
         end
     end
     
     local message = {
-        content = discordPing, -- This will ping the user
+        content = discordPing,
         embeds = {
             {
                 title = '🚨 Priority System',
-                description = string.format('**Player:** %s\n**Action:** %s\n**Location:** %s', player, action, location),
-                color = 3447003, -- Blue color
+                description = string.format('**Player:** %s\n**Action:** %s\n**Location:** %s', 
+                    GetPlayerName(player),
+                    action, 
+                    Config.Zones[location].label
+                ),
+                color = Config.Webhook.embedColor,
                 footer = {
                     text = os.date('%Y-%m-%d %H:%M:%S')
                 },
                 fields = {
                     {
                         name = 'Location',
-                        value = location:upper(),
+                        value = Config.Zones[location].label,
                         inline = true
                     },
                     {
@@ -115,18 +164,13 @@ local function sendToDiscord(player, action, location)
                 }
             }
         },
-        username = "Priority System",
-        avatar_url = "https://i.imgur.com/tC8k4f4.png"
+        username = Config.Webhook.botName,
+        avatar_url = Config.Webhook.avatarUrl
     }
     
-    -- Debug print the message
-    print('Sending webhook message:', json.encode(message))
-    
-    PerformHttpRequest(webhookUrl, function(err, text, headers)
+    PerformHttpRequest(Config.Webhook.url, function(err, text, headers)
         if err then
             print('Webhook Error:', err)
-        else
-            print('Webhook sent successfully!')
         end
     end, 'POST', json.encode(message), { ['Content-Type'] = 'application/json' })
 end
@@ -134,39 +178,41 @@ end
 RegisterNetEvent('priority:start')
 AddEventHandler('priority:start', function(location)
     local source = source
-    if not IsPlayerAceAllowed(source, 'ace.priority') then return end
+    if not IsPlayerAceAllowed(source, Config.AcePermission) then return end
     
-    -- Check if location is valid
-    if not priorities[location] then return end
-    
-    -- Check if priority is already active or in cooldown
+    if not zoneExists(location) then
+        TriggerClientEvent('ox_lib:notify', source, {
+            title = 'ERROR',
+            description = 'Invalid zone: ' .. location,
+            type = 'error'
+        })
+        return
+    end
+
     if priorities[location].status ~= 'Available' then
         TriggerClientEvent('ox_lib:notify', source, {
             title = 'ERROR',
-            description = 'This area is currently unavailable',
+            description = Config.Messages.areaUnavailable,
             type = 'error'
         })
         return
     end
     
-    -- Start the priority
     updatePriorityStatus(location, 'In Progress', 0)
-    
-    -- Send Discord webhook
-    sendToDiscord(GetPlayerName(source), "Started Priority", location)
+    sendToDiscord(source, "Started Priority", location)
 end)
 
 RegisterNetEvent('priority:remove')
 AddEventHandler('priority:remove', function(location)
     local source = source
-    if not IsPlayerAceAllowed(source, 'ace.priority') then return end
+    if not IsPlayerAceAllowed(source, Config.AcePermission) then return end
     
     if not priorities[location] then return end
     
     if priorities[location].status == 'Available' then
         TriggerClientEvent('ox_lib:notify', source, {
             title = 'ERROR',
-            description = 'No active priority in this area',
+            description = Config.Messages.noPriorityActive,
             type = 'error'
         })
         return
@@ -174,16 +220,16 @@ AddEventHandler('priority:remove', function(location)
     
     startCooldown(location)
     
-    sendToDiscord(GetPlayerName(source), "Ended Priority", location)
+    sendToDiscord(source, "Ended Priority", location)
 end)
 
 RegisterNetEvent('priority:checkPermission')
 AddEventHandler('priority:checkPermission', function(action)
     local source = source
-    if not IsPlayerAceAllowed(source, 'ace.priority') then
+    if not IsPlayerAceAllowed(source, Config.AcePermission) then
         TriggerClientEvent('ox_lib:notify', source, {
             title = 'ERROR',
-            description = 'You do not have permission to use this command',
+            description = Config.Messages.noPermission,
             type = 'error'
         })
         return
@@ -199,7 +245,7 @@ end)
 RegisterNetEvent('priority:forceCooldown')
 AddEventHandler('priority:forceCooldown', function(location)
     local source = source
-    if not IsPlayerAceAllowed(source, 'ace.priority') then return end
+    if not IsPlayerAceAllowed(source, Config.AcePermission) then return end
     
     if not priorities[location] then return end
     
@@ -207,9 +253,9 @@ AddEventHandler('priority:forceCooldown', function(location)
     
     TriggerClientEvent('ox_lib:notify', source, {
         title = 'Priority System',
-        description = string.format('Forced cooldown for %s', location),
+        description = string.format(Config.Messages.forcedCooldown, location),
         type = 'inform'
     })
     
-    sendToDiscord(GetPlayerName(source), "Forced Cooldown", location)
+    sendToDiscord(source, "Forced Cooldown", location)
 end)
