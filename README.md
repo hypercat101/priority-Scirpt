@@ -63,7 +63,7 @@ Server Config It below
 /priority
 /prioritycd
 /removepriority
-![image](https://github.com/user-attachments/assets/762f6924-f0d5-4d28-ad73-394fe03ed3ce)
+![image](https://github.com/user-attachments/assets/7f983147-973d-46a5-94c2-845107cb45b8)
 ![image](https://github.com/user-attachments/assets/0df89db5-2ea0-4170-9fa8-9c95ed1ffa3f)
 
 
