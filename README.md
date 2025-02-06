@@ -57,7 +57,7 @@ Server Config It below
 3. **Discord Setup**
    - Create a webhook in your Discord server
    - Copy webhook URL
-   - Add URL to `server/priority.lua`
+   - Add URL to `server/priority.lua` replace it with yours In the line
 
 ## 🎮 Usage Guide
 /priority
