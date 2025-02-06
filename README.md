@@ -63,6 +63,11 @@ Server Config It below
 /priority
 /prioritycd
 /removepriority
+![image](https://github.com/user-attachments/assets/762f6924-f0d5-4d28-ad73-394fe03ed3ce)
+![image](https://github.com/user-attachments/assets/0df89db5-2ea0-4170-9fa8-9c95ed1ffa3f)
+![image](https://github.com/user-attachments/assets/1fe09d71-a0f4-4fdf-afdf-058d29a3f8be)
+
+
 
 
 Extra: You can change the color and wher you want default I have It the top right you can change It
