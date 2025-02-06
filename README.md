@@ -73,3 +73,4 @@ Its my first ever Github upload so probbaly going to have Issues
 
 
 Extra: You can change the color and wher you want default I have It the top right you can change It
+Big thanks to Winchester for looking over the code and fixing some things
