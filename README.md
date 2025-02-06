@@ -67,6 +67,7 @@ Add to your `server.cfg`:
 
 ## 🤝 Support
 For support, please contact  hypercat on discord.
+Its my first ever Github upload so probbaly going to have Issues
 
 
 
